@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Zombie Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.1/examples/jsm/",
+        "tone": "https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="style4.css" />
+</head>
+
+<body>
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-panel">
+      <div class="hud-stat">
+        <span class="label">Salud:</span>
+        <div class="health-bar">
+          <div class="health-fill" id="healthFill" style="width: 100%"></div>
+          <div class="health-text"><span id="healthValue">100</span>/100</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud-panel">
+      <div class="hud-stat">
+        <span class="label">Zombies muertos:</span>
+        <span class="value" id="killCount">0</span>
+      </div>
+
+      <div class="hud-stat">
+        <span class="label">Tiempo:</span>
+        <span class="value" id="timeValue">0:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instrucciones -->
+  <div id="instructions">
+    <h3>CONTROLES</h3>
+    <ul>
+      <li>WASD: Mover</li>
+      <li>Flechas ← → : Girar</li>
+      <li>Espacio: Atacar</li>
+    </ul>
+  </div>
+
+  <div id="datos">
+    <h3>DATOS</h3>
+    <ul>
+      <li>Juan Carlos Mora Cisneros-23200871  </li>
+      <li>Alexander Jahaziel Farias Villa-23200834</li>
+    </ul>
+  </div>
+
+  <!-- Game Over -->
+  <div id="gameOver">
+    <h1>GAME OVER</h1>
+
+    <div class="stats">
+      <p>Zombies eliminados: <strong id="finalKills">0</strong></p>
+      <p>Tiempo sobrevivido: <strong id="finalTime">0:00</strong></p>
+    </div>
+
+    <button onclick="location.reload()">REINTENTAR</button>
+  </div>
+
+  <!-- Audio -->
+  <audio id="ambientAudio" preload="auto" loop>
+    <source src="assets/audio/TWD.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- Canvas -->
+  <canvas id="scene"></canvas>
+
+  <script type="module" src="main4.js"></script>
+</body>
+
+</html>
