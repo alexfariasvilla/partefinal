@@ -370,17 +370,41 @@ const finalTime = document.getElementById("finalTime");
 
 /**  RENDERER & SCENE  */
 const canvas = document.getElementById("scene");
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+});
+
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
+
+renderer.setSize(
+  window.innerWidth,
+  window.innerHeight
+);
+
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+renderer.shadowMap.type =
+  THREE.PCFSoftShadowMap;
+
 renderer.xr.enabled = true;
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0a0f);
-scene.fog = new THREE.FogExp2(0x1a1a2e, 0.015);
+/* ===== MÁS BRILLO ===== */
+renderer.toneMapping =
+  THREE.ACESFilmicToneMapping;
 
+renderer.toneMappingExposure = 2.2;
+
+const scene = new THREE.Scene();
+
+/* ===== FONDO MÁS CLARO ===== */
+scene.background = new THREE.Color(0x404050);
+
+/* ===== MENOS NIEBLA OSCURA ===== */
+scene.fog = new THREE.FogExp2(
+  0x404050,
+  0.006
+);
 /**  CÁMARA & JUGADOR  */
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -401,7 +425,11 @@ const skySystem = {
   
   init() {
     // Luz de luna
-    this.moonLight = new THREE.DirectionalLight(0x6b8cff, 0.8);
+    this.moonLight =
+  new THREE.DirectionalLight(
+    0xffffff,
+    2.8
+  );
     this.moonLight.castShadow = true;
     this.moonLight.shadow.mapSize.set(2048, 2048);
     this.moonLight.shadow.camera.left = -100;
@@ -439,10 +467,31 @@ const skySystem = {
     scene.add(this.stars);
 
     // Luz ambiental
-    const ambientLight = new THREE.AmbientLight(0x2a2a4a, 0.3);
-    scene.add(ambientLight);
-  },
+   const ambientLight =
+  new THREE.AmbientLight(
+    0xffffff,
+    2.0
+  );
 
+scene.add(ambientLight);
+
+/* ===== LUZ EXTRA ===== */
+const hemiLight =
+  new THREE.HemisphereLight(
+    0xffffff,
+    0x444444,
+    1.8
+  );
+
+hemiLight.position.set(
+  0,
+  100,
+  0
+);
+
+scene.add(hemiLight);
+  },
+  
   update(gameTime) {
     if (!this.moon || !this.moonLight) return;
 
