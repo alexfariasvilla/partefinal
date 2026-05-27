@@ -776,16 +776,7 @@ renderer.xr.addEventListener('sessionstart', () => {
 });
 
 // FIX: trigger derecho = atacar con hacha
-controllerRight.addEventListener("selectstart", () => {
-  if (!gameState.isAlive) {
-    location.reload();
-    return;
-  }
-  if (!gameState.isSwinging) {
-    audioSystem.init();
-    swingAxe();
-  }
-});
+
 
 // ============================================================
 // FIX: GOLPE FÍSICO — detectar velocidad del controller derecho
@@ -1127,84 +1118,188 @@ const vrRotation = {
 };
 
 /**  MOVIMIENTO VR — joystick izq. mueve, joystick der. gira  */
+let snapTurnReady = true;
+let attackPressed = false;
+let restartPressed = false;
+
 function updateVRMovement(dt) {
   const session = renderer.xr.getSession();
+
   if (!session) return;
 
-  let moveX = 0, moveZ = 0;
-  let rotateX = 0; // eje horizontal del joystick derecho
-
   for (const source of session.inputSources) {
+
     if (!source.gamepad) continue;
-    const axes = source.gamepad.axes;
 
+    const gamepad = source.gamepad;
+    const axes = gamepad.axes;
+    const buttons = gamepad.buttons;
+
+    // MOVIMIENTO
     if (source.handedness === "left") {
-      // Joystick izquierdo: mover
-      // En Meta Quest axes[2] y axes[3] son el thumbstick principal
-      moveX = axes[2] ?? axes[0] ?? 0;
-      moveZ = axes[3] ?? axes[1] ?? 0;
-    } else if (source.handedness === "right") {
-      // FIX: Joystick derecho: rotar cámara (eje X = girar)
-      rotateX = axes[2] ?? axes[0] ?? 0;
-    }
-  }
 
-  // Dead zone
-  const deadzone = 0.15;
-  if (Math.abs(moveX) < deadzone) moveX = 0;
-  if (Math.abs(moveZ) < deadzone) moveZ = 0;
-  if (Math.abs(rotateX) < deadzone) rotateX = 0;
+      let moveX = axes[2] !== undefined ? axes[2] : axes[0];
+      let moveZ = axes[3] !== undefined ? axes[3] : axes[1];
 
-  // --- MOVIMIENTO ---
-  if (moveX !== 0 || moveZ !== 0) {
-    const forward = new THREE.Vector3();
-    camera.getWorldDirection(forward);
-    forward.y = 0;
-    forward.normalize();
+      const deadzone = 0.15;
 
-    const right = new THREE.Vector3();
-    right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+      if (Math.abs(moveX) < deadzone) moveX = 0;
+      if (Math.abs(moveZ) < deadzone) moveZ = 0;
 
-    const newPos = player.position.clone();
-    newPos.addScaledVector(forward, -moveZ * CONFIG.PLAYER_SPEED * dt);
-    newPos.addScaledVector(right, moveX * CONFIG.PLAYER_SPEED * dt);
+      if (moveX !== 0 || moveZ !== 0) {
 
-    const r = Math.hypot(newPos.x, newPos.z);
-    if (r > CONFIG.WORLD_RADIUS - CONFIG.PLAYER_RADIUS) {
-      const angle = Math.atan2(newPos.z, newPos.x);
-      const maxR = CONFIG.WORLD_RADIUS - CONFIG.PLAYER_RADIUS;
-      newPos.x = Math.cos(angle) * maxR;
-      newPos.z = Math.sin(angle) * maxR;
-    }
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
 
-    for (const obs of obstacles) {
-      const dist = Math.hypot(newPos.x - obs.x, newPos.z - obs.z);
-      const minDist = CONFIG.PLAYER_RADIUS + obs.radius;
-      if (dist < minDist) {
-        const pushDist = minDist - dist + 0.01;
-        const pushX = (newPos.x - obs.x) / dist;
-        const pushZ = (newPos.z - obs.z) / dist;
-        newPos.x += pushX * pushDist;
-        newPos.z += pushZ * pushDist;
+        forward.y = 0;
+        forward.normalize();
+
+        const right = new THREE.Vector3();
+        right.crossVectors(
+          forward,
+          new THREE.Vector3(0, 1, 0)
+        ).normalize();
+
+        const newPos = player.position.clone();
+
+        newPos.addScaledVector(
+          forward,
+          -moveZ * CONFIG.PLAYER_SPEED * dt
+        );
+
+        newPos.addScaledVector(
+          right,
+          moveX * CONFIG.PLAYER_SPEED * dt
+        );
+
+        const r = Math.hypot(newPos.x, newPos.z);
+
+        if (r > CONFIG.WORLD_RADIUS - CONFIG.PLAYER_RADIUS) {
+
+          const angle = Math.atan2(
+            newPos.z,
+            newPos.x
+          );
+
+          const maxR =
+            CONFIG.WORLD_RADIUS -
+            CONFIG.PLAYER_RADIUS;
+
+          newPos.x = Math.cos(angle) * maxR;
+          newPos.z = Math.sin(angle) * maxR;
+        }
+
+        for (const obs of obstacles) {
+
+          const dist = Math.hypot(
+            newPos.x - obs.x,
+            newPos.z - obs.z
+          );
+
+          const minDist =
+            CONFIG.PLAYER_RADIUS + obs.radius;
+
+          if (dist < minDist) {
+
+            const pushDist =
+              minDist - dist + 0.01;
+
+            const pushX =
+              (newPos.x - obs.x) / dist;
+
+            const pushZ =
+              (newPos.z - obs.z) / dist;
+
+            newPos.x += pushX * pushDist;
+            newPos.z += pushZ * pushDist;
+          }
+        }
+
+        player.position.x = newPos.x;
+        player.position.z = newPos.z;
       }
     }
 
-    player.position.x = newPos.x;
-    player.position.z = newPos.z;
-  }
+    // CONTROL DERECHO
+    if (source.handedness === "right") {
 
-  // --- FIX: ROTACIÓN con joystick derecho ---
-  if (rotateX !== 0) {
-    if (vrRotation.useSnap) {
-      // Modo snap (rotación en pasos de 30°)
-      const now = Date.now() / 1000;
-      if (now - vrRotation.lastSnapTime > vrRotation.snapCooldown) {
-        vrRotation.lastSnapTime = now;
-        player.rotation.y -= Math.sign(rotateX) * vrRotation.snapAngle;
+      // GIRO
+      const turnAxis =
+        axes[2] !== undefined
+          ? axes[2]
+          : axes[0];
+
+      if (
+        Math.abs(turnAxis) > 0.7 &&
+        snapTurnReady
+      ) {
+
+        const turnAmount =
+          THREE.MathUtils.degToRad(30);
+
+        if (turnAxis > 0) {
+          player.rotation.y -= turnAmount;
+        } else {
+          player.rotation.y += turnAmount;
+        }
+
+        snapTurnReady = false;
       }
-    } else {
-      // Modo suave
-      player.rotation.y -= rotateX * vrRotation.sensitivity * dt;
+
+      if (Math.abs(turnAxis) < 0.2) {
+        snapTurnReady = true;
+      }
+
+      // ATAQUE
+      const trigger = buttons[0];
+
+      if (
+        trigger &&
+        trigger.pressed &&
+        !attackPressed
+      ) {
+
+        attackPressed = true;
+
+        if (
+          !gameState.isSwinging &&
+          gameState.isAlive
+        ) {
+
+          audioSystem.init();
+          swingAxe();
+        }
+      }
+
+      if (
+        trigger &&
+        !trigger.pressed
+      ) {
+        attackPressed = false;
+      }
+
+      // REINICIAR
+      const buttonA = buttons[4];
+
+      if (
+        buttonA &&
+        buttonA.pressed &&
+        !restartPressed
+      ) {
+
+        restartPressed = true;
+
+        if (!gameState.isAlive) {
+          location.reload();
+        }
+      }
+
+      if (
+        buttonA &&
+        !buttonA.pressed
+      ) {
+        restartPressed = false;
+      }
     }
   }
 }
