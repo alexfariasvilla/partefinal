@@ -23,7 +23,6 @@ const CONFIG = {
   AXE_DAMAGE: 50,
   AXE_RANGE: 3.5,
   AXE_SWING_DURATION: 350,
-  // FIX: umbral para detectar golpe físico con el controller
   PUNCH_VELOCITY_THRESHOLD: 0.8,
   PUNCH_RANGE: 2.5,
 };
@@ -166,10 +165,6 @@ const hudSystem = {
   gameOverCanvas: null,
   gameOverTexture: null,
   gameOverMesh: null,
-  // FIX: panel de instrucciones en VR
-  instructionsCanvas: null,
-  instructionsTexture: null,
-  instructionsMesh: null,
   lastDamageTime: 0,
   
   init(controller) {
@@ -194,29 +189,6 @@ const hudSystem = {
     this.hudMesh.renderOrder = 9999;
     controller.add(this.hudMesh);
 
-    // === INSTRUCCIONES EN VR ===
-    // FIX: se muestran frente al jugador al entrar en VR, se ocultan después de 10s
-    this.instructionsCanvas = document.createElement('canvas');
-    this.instructionsCanvas.width = 512;
-    this.instructionsCanvas.height = 512;
-
-    this.instructionsTexture = new THREE.CanvasTexture(this.instructionsCanvas);
-    const instrMaterial = new THREE.MeshBasicMaterial({
-      map: this.instructionsTexture,
-      transparent: true,
-      side: THREE.DoubleSide,
-      depthTest: false,
-      depthWrite: false
-    });
-
-    const instrGeometry = new THREE.PlaneGeometry(1.2, 1.2);
-    this.instructionsMesh = new THREE.Mesh(instrGeometry, instrMaterial);
-    // Posición: frente al jugador, ligeramente a la izquierda para no tapar el hacha
-    this.instructionsMesh.position.set(-0.6, 0, -1.8);
-    this.instructionsMesh.renderOrder = 9998;
-    this.instructionsMesh.visible = false;
-    controller.add(this.instructionsMesh);
-
     // === GAME OVER SCREEN ===
     this.gameOverCanvas = document.createElement('canvas');
     this.gameOverCanvas.width = 1024;
@@ -239,78 +211,6 @@ const hudSystem = {
     controller.add(this.gameOverMesh);
     
     console.log("✅ HUD inicializado en VR");
-  },
-
-  // FIX: llama esto cuando el usuario entra en VR
-  showInstructions() {
-    if (!this.instructionsCanvas) return;
-
-    const ctx = this.instructionsCanvas.getContext('2d');
-    const w = this.instructionsCanvas.width;
-    const h = this.instructionsCanvas.height;
-
-    // Fondo semitransparente
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = 'rgba(5, 5, 15, 0.92)';
-    roundRect(ctx, 10, 10, w - 20, h - 20, 20);
-    ctx.fill();
-
-    ctx.strokeStyle = '#ff4444';
-    ctx.lineWidth = 4;
-    roundRect(ctx, 10, 10, w - 20, h - 20, 20);
-    ctx.stroke();
-
-    // Título
-    ctx.font = 'bold 52px Arial';
-    ctx.fillStyle = '#ff4444';
-    ctx.textAlign = 'center';
-    ctx.fillText('CONTROLES', w / 2, 80);
-
-    // Línea separadora
-    ctx.strokeStyle = '#ff4444';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(40, 100);
-    ctx.lineTo(w - 40, 100);
-    ctx.stroke();
-
-    const controls = [
-      { icon: '🕹️', label: 'Joystick izq.', desc: 'Mover' },
-      { icon: '🔄', label: 'Joystick der.', desc: 'Girar cámara' },
-      { icon: '👊', label: 'Trigger der.', desc: 'Atacar con hacha' },
-      { icon: '🎯', label: 'Mueve el brazo', desc: 'Golpe físico' },
-    ];
-
-    ctx.textAlign = 'left';
-    controls.forEach((c, i) => {
-      const y = 155 + i * 88;
-
-      ctx.font = '38px Arial';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(c.icon, 40, y);
-
-      ctx.font = 'bold 30px Arial';
-      ctx.fillStyle = '#ff9999';
-      ctx.fillText(c.label, 90, y - 8);
-
-      ctx.font = '26px Arial';
-      ctx.fillStyle = '#cccccc';
-      ctx.fillText(c.desc, 90, y + 24);
-    });
-
-    // Nota de cierre
-    ctx.font = 'italic 22px Arial';
-    ctx.fillStyle = '#888888';
-    ctx.textAlign = 'center';
-    ctx.fillText('(se cierra en 10 segundos)', w / 2, h - 25);
-
-    this.instructionsTexture.needsUpdate = true;
-    this.instructionsMesh.visible = true;
-
-    // Auto-ocultar después de 10 segundos
-    setTimeout(() => {
-      if (this.instructionsMesh) this.instructionsMesh.visible = false;
-    }, 10000);
   },
   
   update(health, kills, gameTime) {
@@ -434,21 +334,6 @@ const hudSystem = {
   }
 };
 
-// Helper para canvas con esquinas redondeadas
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
 /**  DOM ELEMENTOS  */
 const hudHealth = document.getElementById("healthValue");
 const hudHealthFill = document.getElementById("healthFill");
@@ -473,17 +358,27 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x12121f);
 scene.fog = new THREE.FogExp2(0x1a1a2e, 0.008);
 
-/**  CÁMARA & JUGADOR  */
+/**  CÁMARA & JUGADOR
+ *   FIX: playerRig es el grupo que rota (yaw del joystick derecho).
+ *        player vive dentro del rig y es donde se posiciona la cámara XR.
+ *        Así player.rotation.y no interfiere con el tracking de la cabeza.
+ */
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
   500
 );
+
+// Grupo padre que acumula la rotación horizontal del joystick
+const playerRig = new THREE.Group();
+scene.add(playerRig);
+
+// Grupo hijo que contiene cámara y controllers
 const player = new THREE.Group();
 player.position.set(0, CONFIG.PLAYER_HEIGHT, 0);
 player.add(camera);
-scene.add(player);
+playerRig.add(player);
 
 /**  CIELO DINÁMICO  */
 const skySystem = {
@@ -754,6 +649,7 @@ const axeGroup = axeSystem.init();
 /**  VR SETUP  */
 document.body.appendChild(VRButton.createButton(renderer));
 
+// FIX: controllers se agregan al player (hijo del rig), no directo a la escena
 const controllerRight = renderer.xr.getController(1);
 player.add(controllerRight);
 controllerRight.add(axeGroup);
@@ -767,15 +663,14 @@ player.add(gripRight);
 const controllerLeft = renderer.xr.getController(0);
 player.add(controllerLeft);
 
-// FIX: mostrar instrucciones al entrar en VR
 renderer.xr.addEventListener('sessionstart', () => {
   console.log("✅ Sesión VR iniciada");
   audioSystem.init();
   ambientAudioSystem.play();
-  hudSystem.showInstructions();
+  // Instrucciones eliminadas — el juego empieza directo
 });
 
-// FIX: trigger derecho = atacar con hacha
+// Trigger derecho = atacar con hacha
 controllerRight.addEventListener("selectstart", () => {
   if (!gameState.isAlive) {
     location.reload();
@@ -788,44 +683,46 @@ controllerRight.addEventListener("selectstart", () => {
 });
 
 // ============================================================
-// FIX: GOLPE FÍSICO — detectar velocidad del controller derecho
+// GOLPE FÍSICO — detectar velocidad del controller derecho
+// FIX: usa distancia 2D (XZ) para ignorar diferencia de altura
 // ============================================================
 const punchState = {
   prevPos: new THREE.Vector3(),
   currPos: new THREE.Vector3(),
   velocity: new THREE.Vector3(),
   lastPunchTime: 0,
-  punchCooldown: 0.6, // segundos
+  punchCooldown: 0.6,
 };
 
 function updatePhysicalPunch(dt) {
   if (!gameState.isAlive) return;
 
-  // Obtener posición mundial del controller derecho
   controllerRight.getWorldPosition(punchState.currPos);
 
   if (dt > 0) {
-    // Velocidad = desplazamiento / tiempo
     punchState.velocity.subVectors(punchState.currPos, punchState.prevPos).divideScalar(dt);
   }
 
   const speed = punchState.velocity.length();
   const now = Date.now() / 1000;
 
-  // Si la velocidad supera el umbral y pasó suficiente tiempo desde el último golpe
   if (
     speed > CONFIG.PUNCH_VELOCITY_THRESHOLD &&
     now - punchState.lastPunchTime > punchState.punchCooldown
   ) {
     punchState.lastPunchTime = now;
 
-    // Revisar si algún zombie está en rango del controller
     const controllerWorldPos = punchState.currPos.clone();
     let didHit = false;
 
     zombies.forEach((zombie) => {
       if (!zombie.isAlive) return;
-      const dist = controllerWorldPos.distanceTo(zombie.mesh.position);
+
+      // FIX: distancia 2D en plano XZ para ignorar diferencia de altura
+      const dx = controllerWorldPos.x - zombie.mesh.position.x;
+      const dz = controllerWorldPos.z - zombie.mesh.position.z;
+      const dist = Math.hypot(dx, dz);
+
       if (dist < CONFIG.PUNCH_RANGE) {
         audioSystem.playAxeHit();
         zombie.health -= CONFIG.AXE_DAMAGE;
@@ -844,7 +741,6 @@ function updatePhysicalPunch(dt) {
     });
 
     if (didHit) {
-      // Flash visual en la hoja del hacha
       axeSystem.blade.material.emissive = new THREE.Color(0xffffff);
       axeSystem.blade.material.emissiveIntensity = 1;
       setTimeout(() => {
@@ -855,7 +751,6 @@ function updatePhysicalPunch(dt) {
     }
   }
 
-  // Guardar posición actual como anterior para el próximo frame
   punchState.prevPos.copy(punchState.currPos);
 }
 
@@ -919,7 +814,12 @@ function detectAxeCollisions(hitZones) {
     let isHit = false;
 
     for (const zone of hitZones) {
-      const dist = zone.pos.distanceTo(zombiePos);
+      // FIX: distancia 2D en plano XZ — ignora diferencia de altura entre
+      // la hoja del hacha (y≈1.5) y el origen del zombie (y=0)
+      const dx = zone.pos.x - zombiePos.x;
+      const dz = zone.pos.z - zombiePos.z;
+      const dist = Math.hypot(dx, dz);
+
       if (dist < CONFIG.AXE_RANGE) {
         isHit = true;
         break;
@@ -1004,10 +904,11 @@ function createZombie(x, z) {
 function spawnZombie() {
   if (!gameState.isAlive) return;
 
+  // FIX: spawn relativo al playerRig (posición real del jugador en el mundo)
   const angle = Math.random() * Math.PI * 2;
   const distance = CONFIG.ZOMBIE_SPAWN_DISTANCE + Math.random() * 20;
-  const x = player.position.x + Math.cos(angle) * distance;
-  const z = player.position.z + Math.sin(angle) * distance;
+  const x = playerRig.position.x + Math.cos(angle) * distance;
+  const z = playerRig.position.z + Math.sin(angle) * distance;
 
   const r = Math.hypot(x, z);
   if (r < CONFIG.WORLD_RADIUS - 5) {
@@ -1052,7 +953,8 @@ function killZombie(zombie) {
 function updateZombies(dt) {
   if (!gameState.isAlive) return;
 
-  const playerPos = player.position;
+  // FIX: referencia a playerRig para la posición real en el mundo
+  const playerPos = playerRig.position;
   const currentTime = Date.now() / 1000;
 
   zombies.forEach((zombie) => {
@@ -1110,29 +1012,25 @@ function updateZombies(dt) {
 }
 
 // ============================================================
-// FIX: GIRAR CÁMARA con joystick derecho
-// El joystick izquierdo (axes[2], axes[3]) = mover
-// El joystick derecho (axes[2], axes[3] del source derecho) = rotar
-// En Meta Quest: cada source tiene axes[0..3]
-//   axes[0..1] = thumbstick de ese controller
-//   axes[2..3] = también thumbstick (depende del driver)
+// MOVIMIENTO VR
+// FIX: joystick izq. mueve playerRig, joystick der. rota playerRig
+// La rotación se aplica sobre playerRig.rotation.y para no
+// interferir con el tracking de cabeza de la cámara XR.
 // ============================================================
 const vrRotation = {
-  yaw: 0,              // rotación acumulada del jugador en Y
   sensitivity: 1.8,   // radianes por segundo al máximo del joystick
-  snapAngle: Math.PI / 6, // 30° por snap (opcional)
-  useSnap: false,       // false = rotación suave, true = snap
+  snapAngle: Math.PI / 6,
+  useSnap: false,
   lastSnapTime: 0,
   snapCooldown: 0.3,
 };
 
-/**  MOVIMIENTO VR — joystick izq. mueve, joystick der. gira  */
 function updateVRMovement(dt) {
   const session = renderer.xr.getSession();
   if (!session) return;
 
   let moveX = 0, moveZ = 0;
-  let rotateX = 0; // eje horizontal del joystick derecho
+  let rotateX = 0;
 
   for (const source of session.inputSources) {
     if (!source.gamepad) continue;
@@ -1140,11 +1038,10 @@ function updateVRMovement(dt) {
 
     if (source.handedness === "left") {
       // Joystick izquierdo: mover
-      // En Meta Quest axes[2] y axes[3] son el thumbstick principal
       moveX = axes[2] ?? axes[0] ?? 0;
       moveZ = axes[3] ?? axes[1] ?? 0;
     } else if (source.handedness === "right") {
-      // FIX: Joystick derecho: rotar cámara (eje X = girar)
+      // Joystick derecho: rotar cámara (eje horizontal)
       rotateX = axes[2] ?? axes[0] ?? 0;
     }
   }
@@ -1165,10 +1062,12 @@ function updateVRMovement(dt) {
     const right = new THREE.Vector3();
     right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
-    const newPos = player.position.clone();
+    // FIX: mover el playerRig (no el player hijo)
+    const newPos = playerRig.position.clone();
     newPos.addScaledVector(forward, -moveZ * CONFIG.PLAYER_SPEED * dt);
     newPos.addScaledVector(right, moveX * CONFIG.PLAYER_SPEED * dt);
 
+    // Límite circular del mundo
     const r = Math.hypot(newPos.x, newPos.z);
     if (r > CONFIG.WORLD_RADIUS - CONFIG.PLAYER_RADIUS) {
       const angle = Math.atan2(newPos.z, newPos.x);
@@ -1177,6 +1076,7 @@ function updateVRMovement(dt) {
       newPos.z = Math.sin(angle) * maxR;
     }
 
+    // Colisiones con obstáculos
     for (const obs of obstacles) {
       const dist = Math.hypot(newPos.x - obs.x, newPos.z - obs.z);
       const minDist = CONFIG.PLAYER_RADIUS + obs.radius;
@@ -1189,22 +1089,20 @@ function updateVRMovement(dt) {
       }
     }
 
-    player.position.x = newPos.x;
-    player.position.z = newPos.z;
+    playerRig.position.x = newPos.x;
+    playerRig.position.z = newPos.z;
   }
 
-  // --- FIX: ROTACIÓN con joystick derecho ---
+  // --- FIX: ROTACIÓN con joystick derecho sobre playerRig ---
   if (rotateX !== 0) {
     if (vrRotation.useSnap) {
-      // Modo snap (rotación en pasos de 30°)
       const now = Date.now() / 1000;
       if (now - vrRotation.lastSnapTime > vrRotation.snapCooldown) {
         vrRotation.lastSnapTime = now;
-        player.rotation.y -= Math.sign(rotateX) * vrRotation.snapAngle;
+        playerRig.rotation.y -= Math.sign(rotateX) * vrRotation.snapAngle;
       }
     } else {
-      // Modo suave
-      player.rotation.y -= rotateX * vrRotation.sensitivity * dt;
+      playerRig.rotation.y -= rotateX * vrRotation.sensitivity * dt;
     }
   }
 }
@@ -1257,7 +1155,7 @@ renderer.setAnimationLoop(() => {
 
   if (renderer.xr.isPresenting) {
     updateVRMovement(dt);
-    updatePhysicalPunch(dt); // FIX: detectar golpes físicos cada frame
+    updatePhysicalPunch(dt);
   }
 
   hudSystem.update(gameState.health, gameState.kills, gameState.gameTime);
