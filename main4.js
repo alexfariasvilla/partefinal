@@ -232,22 +232,20 @@ const hudSystem = {
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
     // === DISEÑO MINIMALISTA ===
-    // Fondo oscuro muy sutil
     ctx.fillStyle = 'rgba(10, 10, 15, 0.7)';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // Borde delgado elegante
     ctx.strokeStyle = isDamaged ? '#ff3333' : '#444444';
     ctx.lineWidth = 2;
     ctx.strokeRect(3, 3, this.canvas.width - 6, this.canvas.height - 6);
     
-    // === SALUD EN LA PARTE SUPERIOR DERECHA ===
+    // === SALUD ===
     ctx.font = 'bold 28px Arial';
     ctx.fillStyle = health > 50 ? '#00ff00' : health > 25 ? '#ffff00' : '#ff4444';
     ctx.textAlign = 'right';
     ctx.fillText(`${health}%`, this.canvas.width - 30, 50);
     
-    // === BARRA DE VIDA CENTRADA ===
+    // === BARRA DE VIDA ===
     const barWidth = 450;
     const barHeight = 20;
     const barX = (this.canvas.width - barWidth) / 2;
@@ -264,15 +262,13 @@ const hudSystem = {
     ctx.lineWidth = 1;
     ctx.strokeRect(barX, barY, barWidth, barHeight);
     
-    // === STATS EN LA PARTE INFERIOR ===
+    // === STATS ===
     ctx.font = 'bold 20px Arial';
     ctx.textAlign = 'left';
     
-    // Kills
     ctx.fillStyle = '#00dd00';
     ctx.fillText(`K: ${kills}`, 30, 230);
     
-    // Tiempo
     const minutes = Math.floor(gameTime / 60);
     const seconds = gameTime % 60;
     ctx.fillStyle = '#00dddd';
@@ -286,14 +282,12 @@ const hudSystem = {
     
     const ctx = this.gameOverCanvas.getContext('2d');
     
-    // Fondo oscuro con gradiente
     const gradient = ctx.createLinearGradient(0, 0, 0, this.gameOverCanvas.height);
     gradient.addColorStop(0, 'rgba(20, 0, 0, 0.95)');
     gradient.addColorStop(1, 'rgba(0, 0, 10, 0.95)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, this.gameOverCanvas.width, this.gameOverCanvas.height);
     
-    // Borde rojo destacado
     ctx.strokeStyle = '#ff3333';
     ctx.lineWidth = 8;
     ctx.strokeRect(10, 10, this.gameOverCanvas.width - 20, this.gameOverCanvas.height - 20);
@@ -311,7 +305,6 @@ const hudSystem = {
     
     ctx.shadowColor = 'transparent';
     
-    // === STATS FINALES ===
     ctx.font = 'bold 60px Arial';
     ctx.fillStyle = '#00ff00';
     ctx.fillText(`KILLS: ${kills}`, this.gameOverCanvas.width / 2, 280);
@@ -321,27 +314,22 @@ const hudSystem = {
     const seconds = time % 60;
     ctx.fillText(`TIME: ${minutes}:${seconds.toString().padStart(2, '0')}`, this.gameOverCanvas.width / 2, 380);
     
-    // === BOTÓN DE REINTENTAR ===
     const buttonY = 500;
     const buttonWidth = 400;
     const buttonHeight = 100;
     const buttonX = (this.gameOverCanvas.width - buttonWidth) / 2;
     
-    // Fondo del botón
     ctx.fillStyle = '#00dd00';
     ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
     
-    // Borde del botón
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 4;
     ctx.strokeRect(buttonX, buttonY, buttonWidth, buttonHeight);
     
-    // Texto del botón
     ctx.font = 'bold 60px Arial';
     ctx.fillStyle = '#000000';
     ctx.fillText('REINTENTAR', this.gameOverCanvas.width / 2, buttonY + 20);
     
-    // Instrucción
     ctx.font = 'bold 30px Arial';
     ctx.fillStyle = '#ffff00';
     ctx.fillText('Presiona Trigger para reintentar', this.gameOverCanvas.width / 2, 650);
@@ -359,7 +347,7 @@ const hudSystem = {
   }
 };
 
-/**  DOM ELEMENTOS (Para Game Over)  */
+/**  DOM ELEMENTOS  */
 const hudHealth = document.getElementById("healthValue");
 const hudHealthFill = document.getElementById("healthFill");
 const hudKills = document.getElementById("killCount");
@@ -377,9 +365,15 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.xr.enabled = true;
 
+// ✅ FIX VR BRIGHTNESS: tone mapping y exposure para que se vea bien en headset
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.8;
+
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0a0f);
-scene.fog = new THREE.FogExp2(0x1a1a2e, 0.015);
+// ✅ FIX VR BRIGHTNESS: fondo un poco más visible (antes 0x0a0a0f)
+scene.background = new THREE.Color(0x12121f);
+// ✅ FIX VR BRIGHTNESS: fog menos agresivo para ver más lejos (antes 0.015)
+scene.fog = new THREE.FogExp2(0x1a1a2e, 0.008);
 
 /**  CÁMARA & JUGADOR  */
 const camera = new THREE.PerspectiveCamera(
@@ -400,8 +394,8 @@ const skySystem = {
   stars: null,
   
   init() {
-    // Luz de luna
-    this.moonLight = new THREE.DirectionalLight(0x6b8cff, 0.8);
+    // ✅ FIX VR BRIGHTNESS: luz de luna más potente (antes 0x6b8cff, 0.8)
+    this.moonLight = new THREE.DirectionalLight(0x8baaf0, 1.6);
     this.moonLight.castShadow = true;
     this.moonLight.shadow.mapSize.set(2048, 2048);
     this.moonLight.shadow.camera.left = -100;
@@ -438,15 +432,14 @@ const skySystem = {
     this.stars = new THREE.Points(starGeometry, starMaterial);
     scene.add(this.stars);
 
-    // Luz ambiental
-    const ambientLight = new THREE.AmbientLight(0x2a2a4a, 0.3);
+    // ✅ FIX VR BRIGHTNESS: luz ambiental más intensa (antes 0x2a2a4a, 0.3)
+    const ambientLight = new THREE.AmbientLight(0x3a4a6a, 0.7);
     scene.add(ambientLight);
   },
 
   update(gameTime) {
     if (!this.moon || !this.moonLight) return;
 
-    // Luna se mueve en círculo alrededor del mapa
     const moonOrbitRadius = 150;
     const moonSpeed = 0.0001;
     const moonAngle = gameTime * moonSpeed;
@@ -455,12 +448,12 @@ const skySystem = {
     this.moon.position.y = 80 + Math.sin(moonAngle * 0.5) * 30;
     this.moon.position.z = Math.sin(moonAngle) * moonOrbitRadius;
 
-    // Luz sigue a la luna
     this.moonLight.position.copy(this.moon.position);
     this.moonLight.position.multiplyScalar(0.8);
   },
 };
 skySystem.init();
+
 /**  SUELO CON TEXTURA  */
 const textureLoader = new THREE.TextureLoader();
 const groundTexture = textureLoader.load(
@@ -610,6 +603,7 @@ for (let i = 0; i < CONFIG.ROCK_COUNT; i++) {
     createRock(x, z);
   }
 }
+
 /**  HACHA VR MEJORADA  */
 const axeSystem = {
   group: null,
@@ -623,7 +617,6 @@ const axeSystem = {
   init() {
     this.group = new THREE.Group();
 
-    // Mango
     const handleGeometry = new THREE.CylinderGeometry(0.04, 0.06, 0.8, 8);
     const handleMaterial = new THREE.MeshStandardMaterial({
       color: 0x4a2810,
@@ -634,7 +627,6 @@ const axeSystem = {
     this.handle.castShadow = true;
     this.group.add(this.handle);
 
-    // Cabeza del hacha - mejorada
     const bladeGeometry = new THREE.BoxGeometry(0.4, 0.3, 0.08);
     const bladeMaterial = new THREE.MeshStandardMaterial({
       color: 0xcccccc,
@@ -646,7 +638,6 @@ const axeSystem = {
     this.blade.castShadow = true;
     this.group.add(this.blade);
 
-    // Luz del hacha
     this.light = new THREE.PointLight(0xff6600, 0.3, 5);
     this.light.position.y = 0.25;
     this.group.add(this.light);
@@ -677,7 +668,6 @@ document.body.appendChild(VRButton.createButton(renderer));
 const controllerRight = renderer.xr.getController(1);
 player.add(controllerRight);
 controllerRight.add(axeGroup);
-// Inicializar HUD en el controlador derecho
 hudSystem.init(controllerRight);
 
 const controllerModelFactory = new XRControllerModelFactory();
@@ -688,7 +678,6 @@ player.add(gripRight);
 const controllerLeft = renderer.xr.getController(0);
 player.add(controllerLeft);
 
-// Trigger para atacar
 controllerRight.addEventListener("selectstart", () => {
   if (!gameState.isSwinging && gameState.isAlive) {
     audioSystem.init();
@@ -701,7 +690,7 @@ controllerRight.addEventListener("selectstart", () => {
   }
 });
 
-/**  ATAQUE CON HACHA MEJORADO  */
+/**  ATAQUE CON HACHA  */
 function swingAxe() {
   audioSystem.playAxeSwing();
   gameState.isSwinging = true;
@@ -721,7 +710,6 @@ function swingAxe() {
     const elapsed = Date.now() - startTime;
     const progress = Math.min(elapsed / swingDuration, 1);
 
-    // Animación más dinámica del swing
     if (progress < 0.5) {
       const swingProgress = progress * 2;
       axeGroup.rotation.x = originalRotation.x + Math.PI * swingProgress;
@@ -733,7 +721,6 @@ function swingAxe() {
       axeGroup.rotation.z = Math.sin((1 - returnProgress) * Math.PI) * 0.3;
     }
 
-    // Guardar posición para detección de colisiones continua
     const bladePos = axeSystem.getBladeWorldPosition();
     hitZones.push({
       pos: bladePos.clone(),
@@ -748,7 +735,6 @@ function swingAxe() {
       axeGroup.rotation.z = originalRotation.z;
       gameState.isSwinging = false;
 
-      // Detección final de colisiones
       detectAxeCollisions(hitZones);
     }
   }
@@ -767,7 +753,6 @@ function detectAxeCollisions(hitZones) {
     const zombiePos = zombie.mesh.position;
     let isHit = false;
 
-    // Verificar colisión con múltiples puntos del swing
     for (const zone of hitZones) {
       const dist = zone.pos.distanceTo(zombiePos);
       if (dist < CONFIG.AXE_RANGE) {
@@ -781,7 +766,6 @@ function detectAxeCollisions(hitZones) {
       audioSystem.playAxeHit();
       zombie.health -= CONFIG.AXE_DAMAGE;
 
-      // Efecto visual mejorado
       const originalScale = zombie.mesh.scale.clone();
       zombie.mesh.scale.multiplyScalar(0.9);
       const originalColor = zombie.mesh.children[0].material.color.getHex();
@@ -802,13 +786,13 @@ function detectAxeCollisions(hitZones) {
     }
   });
 }
-/**  ZOMBIES MEJORADOS  */
+
+/**  ZOMBIES  */
 const zombies = [];
 
 function createZombie(x, z) {
   const zombieGroup = new THREE.Group();
 
-  // Cuerpo
   const bodyGeometry = new THREE.CapsuleGeometry(0.3, 1.2, 8, 16);
   const bodyMaterial = new THREE.MeshStandardMaterial({
     color: 0x4a6a4a,
@@ -820,7 +804,6 @@ function createZombie(x, z) {
   body.receiveShadow = true;
   zombieGroup.add(body);
 
-  // Cabeza
   const headGeometry = new THREE.SphereGeometry(0.25, 8, 8);
   const headMaterial = new THREE.MeshStandardMaterial({ color: 0x5a7a5a });
   const head = new THREE.Mesh(headGeometry, headMaterial);
@@ -828,7 +811,6 @@ function createZombie(x, z) {
   head.castShadow = true;
   zombieGroup.add(head);
 
-  // Ojos rojos brillantes
   const eyeGeometry = new THREE.SphereGeometry(0.06, 8, 8);
   const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xff1111 });
   const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
@@ -838,7 +820,6 @@ function createZombie(x, z) {
   rightEye.position.set(0.1, 1.85, 0.22);
   zombieGroup.add(rightEye);
 
-  // Luz roja del zombie
   const zombieLight = new THREE.PointLight(0xff2222, 1.2, 6);
   zombieLight.position.y = 1.5;
   zombieGroup.add(zombieLight);
@@ -871,12 +852,10 @@ function spawnZombie() {
   }
 }
 
-// Spawn inicial
 for (let i = 0; i < CONFIG.ZOMBIE_COUNT; i++) {
   spawnZombie();
 }
 
-// Spawn continuo
 setInterval(() => {
   if (zombies.length < CONFIG.ZOMBIE_COUNT * 2 && gameState.isAlive) {
     spawnZombie();
@@ -888,7 +867,6 @@ function killZombie(zombie) {
   gameState.kills++;
   hudKills.textContent = gameState.kills;
 
-  // Animación de muerte mejorada
   let fallProgress = 0;
   const fallInterval = setInterval(() => {
     fallProgress += 0.06;
@@ -907,7 +885,7 @@ function killZombie(zombie) {
   }, 16);
 }
 
-/**  IA DE ZOMBIES MEJORADA  */
+/**  IA DE ZOMBIES  */
 function updateZombies(dt) {
   if (!gameState.isAlive) return;
 
@@ -922,7 +900,6 @@ function updateZombies(dt) {
     const dz = playerPos.z - zombiePos.z;
     const distance = Math.hypot(dx, dz);
 
-    // Sonido ocasional del zombie
     if (
       distance < zombie.detectionRange &&
       currentTime - zombie.lastGrowlTime > 3 + Math.random() * 4
@@ -931,7 +908,6 @@ function updateZombies(dt) {
       zombie.lastGrowlTime = currentTime;
     }
 
-    // Perseguir al jugador
     if (distance > zombie.attackRange + 0.5) {
       const moveX = (dx / distance) * CONFIG.ZOMBIE_SPEED * dt;
       const moveZ = (dz / distance) * CONFIG.ZOMBIE_SPEED * dt;
@@ -939,10 +915,8 @@ function updateZombies(dt) {
       zombiePos.x += moveX;
       zombiePos.z += moveZ;
 
-      // Mirar hacia el jugador
       zombie.mesh.lookAt(playerPos.x, zombiePos.y, playerPos.z);
 
-      // Colisiones con obstáculos
       for (const obs of obstacles) {
         const obsDist = Math.hypot(zombiePos.x - obs.x, zombiePos.z - obs.z);
         const minDist = 0.5 + obs.radius;
@@ -955,16 +929,13 @@ function updateZombies(dt) {
           zombiePos.z += pushZ * pushDist;
         }
       }
-    }
-    // Atacar al jugador
-    else if (
+    } else if (
       currentTime - zombie.lastAttackTime >
       CONFIG.ZOMBIE_ATTACK_COOLDOWN
     ) {
       zombie.lastAttackTime = currentTime;
       damagePlayer(CONFIG.ZOMBIE_DAMAGE);
 
-      // Efecto de ataque mejorado
       zombie.mesh.scale.set(1.15, 1.1, 1.15);
       setTimeout(() => {
         if (zombie.mesh && zombie.isAlive) {
@@ -974,7 +945,8 @@ function updateZombies(dt) {
     }
   });
 }
-/**  MOVIMIENTO VR MEJORADO  */
+
+/**  MOVIMIENTO VR  */
 function updateVRMovement(dt) {
   const session = renderer.xr.getSession();
   if (!session) return;
@@ -988,7 +960,6 @@ function updateVRMovement(dt) {
     let moveX = 0,
       moveZ = 0;
 
-    // Stick izquierdo para movimiento
     if (source.handedness === "left") {
       moveX = axes[2] || 0;
       moveZ = axes[3] || 0;
@@ -1014,7 +985,6 @@ function updateVRMovement(dt) {
       newPos.addScaledVector(forward, -moveZ * CONFIG.PLAYER_SPEED * dt);
       newPos.addScaledVector(right, moveX * CONFIG.PLAYER_SPEED * dt);
 
-      // Límites del mundo
       const r = Math.hypot(newPos.x, newPos.z);
       if (r > CONFIG.WORLD_RADIUS - CONFIG.PLAYER_RADIUS) {
         const angle = Math.atan2(newPos.z, newPos.x);
@@ -1023,7 +993,6 @@ function updateVRMovement(dt) {
         newPos.z = Math.sin(angle) * maxR;
       }
 
-      // Colisiones con obstáculos
       for (const obs of obstacles) {
         const dist = Math.hypot(newPos.x - obs.x, newPos.z - obs.z);
         const minDist = CONFIG.PLAYER_RADIUS + obs.radius;
@@ -1053,15 +1022,14 @@ function damagePlayer(damage) {
     (gameState.health / CONFIG.MAX_HEALTH) * 100
   }%`;
 
-  // Sonido de daño
   audioSystem.playPlayerDamage();
 
-  // Efecto de pantalla roja
   const originalColor = scene.background.getHex();
   scene.background.set(0x440000);
   setTimeout(() => {
     if (gameState.isAlive) {
-      scene.background.set(originalColor);
+      // ✅ FIX VR BRIGHTNESS: restaurar al color correcto (antes 0x0a0a0f)
+      scene.background.set(0x12121f);
     }
   }, 200);
 
@@ -1076,8 +1044,6 @@ function gameOver() {
   audioSystem.playGameOver();
 
   const survivalTime = Math.floor((Date.now() - gameState.startTime) / 1000);
-  
-  // Mostrar Game Over en VR
   hudSystem.showGameOver(gameState.kills, survivalTime);
 }
 
